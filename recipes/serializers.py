@@ -1,5 +1,14 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from recipes.models import Category
+from tag.models import Tag
+
+
+class TagSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
 
 class RecipeSerializer(serializers.Serializer):
     id = serializers.IntegerField()
@@ -7,6 +16,25 @@ class RecipeSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=165)
     public = serializers.BooleanField(source='is_published')
     preparation = serializers.SerializerMethodField(method_name="any_method_name")
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+    )
+    category_name = serializers.StringRelatedField(source = 'category',)
+    
+    author = serializers.PrimaryKeyRelatedField(
+        queryset = User.objects.all()
+    )
+    author_name = serializers.StringRelatedField(source = 'author')
+    
+    tags = serializers.PrimaryKeyRelatedField(
+        queryset = Tag.objects.all(),
+        many=True,
+    )
+    tags_objects = TagSerializer(
+        many=True,
+        source='tags',
+    )
+    
     
     def any_method_name(self, recipe):
         return f'{recipe.preparation_time} {recipe.preparation_time_unit}'
