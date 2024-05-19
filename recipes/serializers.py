@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from recipes.models import Category, Recipe
+from authors.validators import AuthorRecipeValidator
+from recipes.models import Recipe
 from tag.models import Tag
 
 
@@ -18,40 +19,42 @@ class RecipeSerializer(serializers.ModelSerializer):
         model = Recipe
         #fields = all()
         fields = [
-            'author', 'tags', 'description', 'public', 'id', 'category', 'tag_links', 'author_name',
-            'preparation',
-            'title', 'category_name', 'tags_objects', 'tag_links',
+            'id', 'title', 'description', 'author',
+            'category', 'tags', 'public', 'preparation',
+            'tag_objects', 'tag_links',
+            'preparation_time', 'preparation_time_unit', 'servings',
+            'servings_unit',
+            'preparation_steps', 'cover', "author_name"
             ]
         
-    id = serializers.IntegerField()
-    title = serializers.CharField(max_length=65)
-    description = serializers.CharField(max_length=165)
+    
     public = serializers.BooleanField(source='is_published', read_only=True)
     preparation = serializers.SerializerMethodField(method_name="any_method_name", read_only=True)
-    category = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), 
-    )
-    category_name = serializers.StringRelatedField(source = 'category', read_only=True)
     
-    author = serializers.PrimaryKeyRelatedField(
-        queryset = User.objects.all()
-    )
-    author_name = serializers.StringRelatedField(source = 'author')
+    category= serializers.StringRelatedField(read_only=True)
+   
+    author_name = serializers.StringRelatedField(read_only=True)
     
-    tags = serializers.PrimaryKeyRelatedField(
-        queryset = Tag.objects.all(),
-        many=True,
-    )
-    tags_objects = TagSerializer(
+    
+    tag_objects = TagSerializer(
         many=True,
         source='tags', read_only=True
     )
     tag_links = serializers.HyperlinkedRelatedField(
         many=True,
         source='tags',
-        queryset=Tag.objects.all(),
-        view_name='recipes:recipes_api_v2_tag'
+        #queryset=Tag.objects.all(), tirei pq coloquei como somente leitura add o read_only
+        view_name='recipes:recipes_api_v2_tag',
+        read_only=True
     )
     
     def any_method_name(self, recipe):
         return f'{recipe.preparation_time} {recipe.preparation_time_unit}'
+    
+    
+    def validate(self, attrs):
+        super_validate = super().validate(attrs)
+        AuthorRecipeValidator(data=attrs, ErrorClass=serializers.ValidationError)
+
+        
+        return super_validate

@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -21,7 +21,15 @@ def recipe_api_list(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        return Response('POST', status=status.HTTP_201_CREATED)
+        print(request.data)
+        serializer = RecipeSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+            
 
 
 @api_view(http_method_names=['GET', 'POST', 'OPTIONS'])
