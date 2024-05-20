@@ -2,55 +2,66 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework.generics import ListCreateAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from recipes.models import Recipe
 from recipes.serializers import RecipeSerializer, TagSerializer
 from tag.models import Tag
 
 
-@api_view(http_method_names=['GET', 'POST', 'OPTIONS'])
-def recipe_api_list(request):
-    if request.method == 'GET':
-        recipes = Recipe.objects.get_published()[:10]
-        serializer = RecipeSerializer(
-            instance=recipes,
-            many=True,
-            context={'request': request}
-        )
-        return Response(serializer.data)
-    
-    elif request.method == 'POST':
-        print(request.data)
-        serializer = RecipeSerializer(
-             data=request.data, 
-            context={'request': request},
-           
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save(
-            
-        )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+class RecipeAPIv2MyPagination(PageNumberPagination):
+    ...
+    page_size = 1
+class RecipeAPIV2List(ListCreateAPIView):
+    queryset = Recipe.objects.get_published()
+    serializer_class = RecipeSerializer
+    pagination_class = RecipeAPIv2MyPagination
+    # def get(self, request):
+    #     ...
+    #     recipes = Recipe.objects.get_published()[:10]
+    #     serializer = RecipeSerializer(
+    #         instance=recipes,
+    #         many=True,
+    #         context={'request': request}
+    #     )
+    #     return Response(serializer.data)
         
+    # def post(self, request):
+    #     ...
+    #     print(request.data)
+    #     serializer = RecipeSerializer(
+    #          data=request.data, 
+    #         context={'request': request},
+           
+    #     )
+    #     serializer.is_valid(raise_exception=True)
+    #     serializer.save(
             
+    #     )
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
-@api_view(http_method_names=['GET', 'PATCH', 'OPTIONS', 'DELETE'])
-def recipe_api_detail(request, pk):
-    recipe = get_object_or_404(
-         Recipe.objects.get_published(), pk=pk
-     )
-    if request.method == 'GET':
+class RecipeAPIV2Detail(APIView):
+    def get_recipe(self,pk):
+        recipe = get_object_or_404(
+        Recipe.objects.get_published(), pk=pk)
+        return recipe
+    def get(self, request, pk):
+        ...
+        recipe = self.get_recipe(pk)
         serializer = RecipeSerializer(
             instance=recipe,
             many=False,
             context={'request': request}
         )
         return Response(serializer.data)
-    
-    elif request.method == 'PATCH':
+        
+    def patch(self, request, pk):
         ...
+        recipe = self.get_recipe(pk)
+        
         serializer = RecipeSerializer(
             instance=recipe, #enviar dados
             data=request.data,  #receber dados
@@ -68,23 +79,12 @@ def recipe_api_detail(request, pk):
             )
         
         
-    elif request.method == 'DELETE':
+    def delete(self, request, pk):
+        ...
+        recipe = self.get_recipe(pk)
         recipe.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    #recipe = Recipe.objects.get_published().filter(pk=pk).first()
-    
-    # if recipe:
-    #     serializer = RecipeSerializer(instance=recipe, many=False)
-    #     return Response(serializer.data)
-    
-    # else:
-    #     return Response(
-    #         {
-    #             'detail': 'Eita, receita não encontrada'
-    #         },
-    #         status=status.HTTP_404_NOT_FOUND
-    #     )
     
 @api_view(http_method_names=['GET', 'POST', 'OPTIONS'])
 def tag_api_detail(request, pk):
