@@ -4,11 +4,13 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from recipes.models import Recipe
+from recipes.permissions import IsOwner
 from recipes.serializers import RecipeSerializer, TagSerializer
 from tag.models import Tag
 
@@ -21,8 +23,58 @@ class RecipeAPIv2ViewSet(ModelViewSet):
     queryset = Recipe.objects.get_published()
     serializer_class = RecipeSerializer
     pagination_class = RecipeAPIv2MyPagination
+    permission_classes = [IsAuthenticatedOrReadOnly,]
     
-
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category_id = self.request.query_params.get('category_id', '')
+        if category_id != '' and category_id.is_numeric():
+            qs = qs.filter(category_id = category_id)
+        return qs
+    
+    def get_object(self):
+        pk = self.kwargs.get('pk', '')
+        obj = get_object_or_404(
+            self.get_queryset(),
+            pk=pk,
+        ) 
+        
+        self.check_object_permissions(self.request, obj)
+        
+        return obj
+    
+    def get_permissions(self):
+        if self.request.method in ['PATCH', 'DELETE']:
+            return [IsOwner(), ]
+        
+        if self.request.method == 'POST':
+            return []
+        return super().get_permissions()
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(
+            author = request.user
+        )
+        headers = self.get_success_headers(serializer.data)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
+    def partial_update(self, request, *args, **kwargs):
+        recipe = self.get_object()
+        serializer = RecipeSerializer(
+            instance=recipe,
+            data=request.data,
+            many=False,
+            context={'request': request},
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            serializer.data
+        )
     
 @api_view(http_method_names=['GET', 'POST', 'OPTIONS'])
 def tag_api_detail(request, pk):
